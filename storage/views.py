@@ -5,20 +5,39 @@ from django.contrib.auth.decorators import login_required
 from django.core.files.base import ContentFile
 from django.http import FileResponse, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
-from django.utils import timezone
 
 from accounts.models import User
 from encryption.utils import decrypt_bytes, derive_key, encrypt_bytes, sha256_hex
 from storage.forms import ShareFileForm, UploadFileForm
-from storage.models import AuditLog, SecureFile
-from storage.services import list_visible_files, log_event, search_files_for_user, user_can_access_file
+from storage.models import AuditLog, SecureFile, SecureFileShare
+from storage.services import (
+	list_visible_files,
+	log_event,
+	search_files_for_user,
+	user_can_access_file,
+	user_can_download_file,
+)
 
 
 @login_required
 def file_list(request):
 	query = request.GET.get("q", "")
 	files = search_files_for_user(request.user, query)
-	return render(request, "storage/file_list.html", {"files": files, "query": query})
+	share_entries = {
+		entry.secure_file_id: entry
+		for entry in SecureFileShare.objects.filter(secure_file__in=files, viewer=request.user)
+	}
+	return render(
+		request,
+		"storage/file_list.html",
+		{
+			"files": files,
+			"query": query,
+			"share_entries": share_entries,
+			"show_encrypt_popup": request.GET.get("enc") == "1",
+			"popup_file_id": request.GET.get("file_id", ""),
+		},
+	)
 
 
 @login_required
@@ -56,14 +75,25 @@ def upload_file(request):
 			secure_file.aes_tag = tag_hex
 			secure_file.encrypted_file.save(f"{source.name}.enc", ContentFile(encrypted_bytes), save=False)
 			secure_file.save()
-			secure_file.shared_with.set(form.cleaned_data["share_with"])
+
+			share_username = (form.cleaned_data.get("share_username") or "").strip()
+			if share_username:
+				viewer = User.objects.filter(username=share_username, role=User.Role.VIEWER).first()
+				if viewer:
+					SecureFileShare.objects.update_or_create(
+						secure_file=secure_file,
+						viewer=viewer,
+						defaults={"permission": form.cleaned_data.get("share_permission") or SecureFileShare.Permission.VIEW},
+					)
+				else:
+					messages.warning(request, "Viewer username not found. File uploaded without sharing.")
 
 			request.user.storage_used += file_size
 			request.user.save(update_fields=["storage_used"])
 
 			log_event(request, request.user, AuditLog.Action.UPLOAD, secure_file, "Encrypted upload completed")
 			messages.success(request, "File uploaded and encrypted successfully.")
-			return redirect("storage:files")
+			return redirect(f"/storage/files/?enc=1&file_id={secure_file.id}")
 	else:
 		form = UploadFileForm()
 
@@ -89,14 +119,24 @@ def delete_file(request, file_id):
 	return redirect("storage:files")
 
 
-def _validate_download_gate(request, secure_file):
+def _validate_view_gate(request, secure_file):
 	if secure_file.is_expired:
 		messages.error(request, "This file has expired.")
 		return False
+	if not user_can_access_file(request.user, secure_file):
+		messages.error(request, "You do not have access to this file.")
+		return False
+	return True
+
+
+def _validate_download_gate(request, secure_file):
+	if not _validate_view_gate(request, secure_file):
+		return False
+	if not user_can_download_file(request.user, secure_file):
+		messages.error(request, "You only have view permission for this file.")
+		return False
 	if not secure_file.can_download_more:
 		messages.error(request, "Download limit reached for this file.")
-		return False
-	if not user_can_access_file(request.user, secure_file):
 		return False
 	return True
 
@@ -132,7 +172,7 @@ def download_file(request, file_id):
 @login_required
 def view_file(request, file_id):
 	secure_file = get_object_or_404(SecureFile, id=file_id)
-	if not _validate_download_gate(request, secure_file):
+	if not _validate_view_gate(request, secure_file):
 		return redirect("storage:files")
 
 	try:
@@ -141,8 +181,6 @@ def view_file(request, file_id):
 		messages.error(request, "Decryption failed or integrity check mismatch.")
 		return redirect("storage:files")
 
-	secure_file.download_count += 1
-	secure_file.save(update_fields=["download_count"])
 	log_event(request, request.user, AuditLog.Action.VIEW, secure_file, "File viewed inline")
 
 	response = FileResponse(BytesIO(decrypted), as_attachment=False, filename=secure_file.original_name)
@@ -162,14 +200,35 @@ def share_file(request, file_id):
 	if request.method == "POST":
 		form = ShareFileForm(request.POST)
 		if form.is_valid():
-			viewers = form.cleaned_data["viewers"]
-			secure_file.shared_with.set(viewers)
-			viewer_list = ", ".join(v.username for v in viewers) or "none"
-			log_event(request, request.user, AuditLog.Action.SHARE, secure_file, f"Shared with: {viewer_list}")
+			username = form.cleaned_data["username"].strip()
+			viewer = User.objects.filter(username=username, role=User.Role.VIEWER).first()
+			if not viewer:
+				messages.error(request, "Viewer username not found.")
+				return redirect("storage:share", file_id=secure_file.id)
+
+			if form.cleaned_data.get("remove_access"):
+				SecureFileShare.objects.filter(secure_file=secure_file, viewer=viewer).delete()
+				log_event(request, request.user, AuditLog.Action.SHARE, secure_file, f"Removed access for: {viewer.username}")
+				messages.success(request, f"Access removed for {viewer.username}.")
+				return redirect("storage:files")
+
+			permission = form.cleaned_data["permission"]
+			SecureFileShare.objects.update_or_create(
+				secure_file=secure_file,
+				viewer=viewer,
+				defaults={"permission": permission},
+			)
+			log_event(
+				request,
+				request.user,
+				AuditLog.Action.SHARE,
+				secure_file,
+				f"Shared with {viewer.username} ({permission})",
+			)
 			messages.success(request, "Sharing permissions updated.")
 			return redirect("storage:files")
 	else:
-		form = ShareFileForm(initial={"viewers": secure_file.shared_with.all()})
+		form = ShareFileForm()
 
 	return render(request, "storage/share_file.html", {"file": secure_file, "form": form})
 
@@ -177,7 +236,11 @@ def share_file(request, file_id):
 @login_required
 def shared_files(request):
 	files = list_visible_files(request.user)
-	return render(request, "storage/shared_files.html", {"files": files})
+	share_entries = {
+		entry.secure_file_id: entry
+		for entry in SecureFileShare.objects.filter(secure_file__in=files, viewer=request.user)
+	}
+	return render(request, "storage/shared_files.html", {"files": files, "share_entries": share_entries})
 
 
 @login_required

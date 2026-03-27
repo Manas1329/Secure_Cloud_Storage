@@ -18,8 +18,11 @@
         <label>Download Limit</label>
         {{ form.download_limit }}
 
-        <label>Share with viewers</label>
-        {{ form.share_with }}
+        <label>Share with viewer username (optional)</label>
+        {{ form.share_username }}
+
+        <label>Permission for shared viewer</label>
+        {{ form.share_permission }}
 
         <button class="btn" type="submit">Encrypt and Upload</button>
     </form>

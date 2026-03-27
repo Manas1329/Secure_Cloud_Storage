@@ -10,7 +10,7 @@
     <article class="glass card">
         <h3>Storage Usage</h3>
         <div class="progress"><span style="width: {{ storage_percent }}%"></span></div>
-        <p>{{ user.storage_used }} / {{ user.storage_limit }} bytes</p>
+      <p>{{ user.storage_used|filesizeformat }} / {{ user.storage_limit|filesizeformat }}</p>
     </article>
     <article class="glass card"><h3>Total Files</h3><p>{{ file_count }}</p></article>
     <article class="glass card"><h3>Recent Uploads</h3>

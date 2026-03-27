@@ -1,5 +1,5 @@
 from django.contrib import admin
-from storage.models import AuditLog, SecureFile
+from storage.models import AuditLog, SecureFile, SecureFileShare
 
 
 @admin.register(SecureFile)
@@ -23,3 +23,10 @@ class AuditLogAdmin(admin.ModelAdmin):
 	list_display = ("timestamp", "user", "action", "ip_address", "file_reference")
 	search_fields = ("user__username", "action", "details")
 	list_filter = ("action", "timestamp")
+
+
+@admin.register(SecureFileShare)
+class SecureFileShareAdmin(admin.ModelAdmin):
+	list_display = ("secure_file", "viewer", "permission", "shared_at")
+	search_fields = ("secure_file__original_name", "viewer__username")
+	list_filter = ("permission", "shared_at")

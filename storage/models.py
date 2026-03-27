@@ -46,6 +46,25 @@ class SecureFile(models.Model):
 		return self.download_limit == 0 or self.download_count < self.download_limit
 
 
+class SecureFileShare(models.Model):
+	class Permission(models.TextChoices):
+		VIEW = "view", "View only"
+		VIEW_DOWNLOAD = "view_download", "View and download"
+
+	secure_file = models.ForeignKey(SecureFile, on_delete=models.CASCADE, related_name="share_entries")
+	viewer = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="file_access_entries")
+	permission = models.CharField(max_length=20, choices=Permission.choices, default=Permission.VIEW)
+	shared_at = models.DateTimeField(auto_now_add=True)
+
+	class Meta:
+		unique_together = ("secure_file", "viewer")
+		ordering = ["-shared_at"]
+
+	@property
+	def can_download(self):
+		return self.permission == self.Permission.VIEW_DOWNLOAD
+
+
 class AuditLog(models.Model):
 	class Action(models.TextChoices):
 		UPLOAD = "upload", "Upload"

@@ -3,12 +3,13 @@ from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth.views import LoginView
+from django.db.models import Sum
 from django.shortcuts import redirect, render
 from django.urls import reverse_lazy
 
 from accounts.forms import LoginForm, ProfileForm, RegisterForm
 from accounts.models import User
-from storage.models import AuditLog, SecureFile
+from storage.models import AuditLog, SecureFile, SecureFileShare
 from storage.services import log_event
 
 
@@ -56,6 +57,7 @@ def dashboard(request):
 		context = {
 			"users_count": User.objects.count(),
 			"files_count": SecureFile.objects.count(),
+			"total_storage": SecureFile.objects.aggregate(total=Sum("file_size"))["total"] or 0,
 			"recent_logs": AuditLog.objects.select_related("user")[:10],
 		}
 		return render(request, "accounts/admin_dashboard.html", context)
@@ -69,8 +71,8 @@ def dashboard(request):
 		return render(request, "accounts/user_dashboard.html", context)
 
 	context = {
-		"shared_count": SecureFile.objects.filter(shared_with=user).count(),
-		"recent_shared": SecureFile.objects.filter(shared_with=user)[:5],
+		"shared_count": SecureFileShare.objects.filter(viewer=user).count(),
+		"recent_shared": SecureFile.objects.filter(share_entries__viewer=user).distinct()[:5],
 	}
 	return render(request, "accounts/viewer_dashboard.html", context)
 

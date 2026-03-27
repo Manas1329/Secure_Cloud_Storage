@@ -41,22 +41,40 @@ const modal = document.getElementById("pipelineModal");
 const closeModal = document.getElementById("closeModal");
 const stepsRoot = document.getElementById("pipelineSteps");
 const textRoot = document.getElementById("pipelineText");
+const titleRoot = document.getElementById("pipelineTitle");
+const loaderBar = document.getElementById("pipelineLoaderBar");
 
-function typeText(target, text, speed = 16) {
+function typeText(target, text, speed = 16, onDone) {
   target.textContent = "";
   let idx = 0;
   const timer = setInterval(() => {
     target.textContent += text[idx];
     idx += 1;
-    if (idx >= text.length) clearInterval(timer);
+    if (idx >= text.length) {
+      clearInterval(timer);
+      if (typeof onDone === "function") onDone();
+    }
   }, speed);
 }
 
-window.showPipeline = function (button, reverse = false) {
+function openModal() {
+  modal.classList.remove("hidden");
+  requestAnimationFrame(() => modal.classList.add("open"));
+  modal.setAttribute("aria-hidden", "false");
+}
+
+function closeModalAnimated() {
+  modal.classList.remove("open");
+  modal.setAttribute("aria-hidden", "true");
+  setTimeout(() => modal.classList.add("hidden"), 320);
+}
+
+function runPipeline({ fileName, hash, fermat, mode = "encrypt", onDone, autoClose = false }) {
   if (!modal || !stepsRoot || !textRoot) return;
-  const hash = button.dataset.hash || "";
-  const fermat = button.dataset.fermat || "N/A";
-  const fileName = button.dataset.file || "file";
+  const reverse = mode === "decrypt";
+  if (titleRoot) {
+    titleRoot.textContent = reverse ? "Decryption Pipeline" : "Encryption Pipeline";
+  }
   const steps = reverse
     ? ["Fetch Encrypted File", "Regenerate Key", "AES Decryption", "SHA-256 Verify", "Serve File"]
     : ["Upload", "SHA-256", "Fermat Key Logic", "AES Encryption", "Store Metadata"];
@@ -73,14 +91,77 @@ window.showPipeline = function (button, reverse = false) {
     ? `File: ${fileName}\nRecompute key seed using Fermat validation:\n${fermat}\nDecrypt using AES-GCM nonce+tag\nRecomputed SHA-256: ${hash.slice(0, 24)}...\nIntegrity check passed.`
     : `File: ${fileName}\nGenerating SHA-256 digest...\nSHA-256: ${hash}\nFermat validation:\n${fermat}\nDeriving key and encrypting with AES-GCM...\nEncrypted file committed to storage.`;
 
-  typeText(textRoot, longText, 12);
-  modal.classList.remove("hidden");
-  modal.setAttribute("aria-hidden", "false");
+  if (loaderBar) {
+    loaderBar.classList.remove("complete");
+    loaderBar.classList.add("running");
+  }
+  openModal();
+  typeText(textRoot, longText, 12, () => {
+    if (loaderBar) {
+      loaderBar.classList.remove("running");
+      loaderBar.classList.add("complete");
+    }
+    const finish = () => {
+      if (autoClose) {
+        closeModalAnimated();
+      }
+      if (typeof onDone === "function") {
+        onDone();
+      }
+    };
+    setTimeout(finish, 700);
+  });
+}
+
+window.showPipeline = function (button, reverse = false) {
+  runPipeline({
+    fileName: button.dataset.file || "file",
+    hash: button.dataset.hash || "",
+    fermat: button.dataset.fermat || "N/A",
+    mode: reverse ? "decrypt" : "encrypt",
+    autoClose: false,
+  });
 };
 
 if (closeModal) {
   closeModal.addEventListener("click", () => {
-    modal.classList.add("hidden");
-    modal.setAttribute("aria-hidden", "true");
+    closeModalAnimated();
   });
+}
+
+document.querySelectorAll(".secure-action").forEach((button) => {
+  button.addEventListener("click", () => {
+    const url = button.dataset.url;
+    runPipeline({
+      fileName: button.dataset.file || "file",
+      hash: button.dataset.hash || "",
+      fermat: button.dataset.fermat || "N/A",
+      mode: button.dataset.mode || "decrypt",
+      autoClose: true,
+      onDone: () => {
+        if (url) window.location.href = url;
+      },
+    });
+  });
+});
+
+const uploadMeta = document.getElementById("uploadPopupMeta");
+if (uploadMeta) {
+  const fileId = uploadMeta.dataset.fileId;
+  const lockButton = document.querySelector(`[data-file-id='${fileId}']`);
+  if (lockButton) {
+    runPipeline({
+      fileName: lockButton.dataset.file || "file",
+      hash: lockButton.dataset.hash || "",
+      fermat: lockButton.dataset.fermat || "N/A",
+      mode: "encrypt",
+      autoClose: true,
+      onDone: () => {
+        const url = new URL(window.location.href);
+        url.searchParams.delete("enc");
+        url.searchParams.delete("file_id");
+        window.history.replaceState({}, "", url.toString());
+      },
+    });
+  }
 }

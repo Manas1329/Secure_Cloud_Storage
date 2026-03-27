@@ -1,18 +1,40 @@
 {% extends 'base.html' %}
+{% load storage_extras %}
 {% block title %}SecureCloud | Shared Files{% endblock %}
 {% block content %}
 <section class="glass panel">
     <h2>Shared Files</h2>
     <table class="table">
-        <tr><th>File</th><th>Owner</th><th>Downloads</th><th>Actions</th></tr>
+        <tr><th>File</th><th>Owner</th><th>Size</th><th>Downloads</th><th>Actions</th></tr>
         {% for f in files %}
         <tr>
             <td>{{ f.original_name }}</td>
             <td>{{ f.owner.username }}</td>
+            <td>{{ f.file_size|filesizeformat }}</td>
             <td>{{ f.download_count }}</td>
             <td class="action-row">
-                <a class="btn small" href="{% url 'storage:view' f.id %}">View</a>
-                <a class="btn small" href="{% url 'storage:download' f.id %}">Download</a>
+                <button
+                    class="btn small secure-action"
+                    type="button"
+                    data-url="{% url 'storage:view' f.id %}"
+                    data-mode="decrypt"
+                    data-file="{{ f.original_name }}"
+                    data-hash="{{ f.sha256_hash }}"
+                    data-fermat="{{ f.fermat_base }}^(p-1) mod {{ f.fermat_modulus }} = {{ f.fermat_result }}"
+                >View</button>
+                {% with share=share_entries|get_item:f.id %}
+                    {% if share and share.can_download %}
+                    <button
+                        class="btn small secure-action"
+                        type="button"
+                        data-url="{% url 'storage:download' f.id %}"
+                        data-mode="decrypt"
+                        data-file="{{ f.original_name }}"
+                        data-hash="{{ f.sha256_hash }}"
+                        data-fermat="{{ f.fermat_base }}^(p-1) mod {{ f.fermat_modulus }} = {{ f.fermat_result }}"
+                    >Download</button>
+                    {% endif %}
+                {% endwith %}
                 <button
                     class="btn small"
                     type="button"
@@ -20,10 +42,11 @@
                     data-file="{{ f.original_name }}"
                     data-hash="{{ f.sha256_hash }}"
                     data-fermat="{{ f.fermat_base }}^(p-1) mod {{ f.fermat_modulus }} = {{ f.fermat_result }}"
-                >Decrypt Flow</button>
+                    title="Show cryptography pipeline"
+                >&#128274;</button>
             </td>
         </tr>
-        {% empty %}<tr><td colspan="4">No files are shared with you.</td></tr>{% endfor %}
+        {% empty %}<tr><td colspan="5">No files are shared with you.</td></tr>{% endfor %}
     </table>
 </section>
 {% endblock %}

@@ -147,6 +147,12 @@ html[data-theme='dark'] .input {
   gap: 8px;
 }
 
+.inline-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -216,16 +222,30 @@ html[data-theme='dark'] .input {
   place-items: center;
   background: rgba(4, 10, 18, 0.45);
   z-index: 20;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 260ms ease, visibility 260ms ease;
 }
 
-.hidden {
-  display: none;
+.modal.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .modal-content {
   width: min(700px, 94vw);
   border-radius: 16px;
   padding: 18px;
+  transform: translateY(18px) scale(0.84);
+  transform-origin: center center;
+  opacity: 0;
+  transition: transform 420ms cubic-bezier(0.18, 0.86, 0.24, 1), opacity 340ms ease;
+}
+
+.modal.open .modal-content {
+  transform: translateY(0) scale(1);
+  opacity: 1;
 }
 
 .pipeline-steps {
@@ -269,7 +289,16 @@ html[data-theme='dark'] .input {
   height: 100%;
   width: 45%;
   background: linear-gradient(90deg, var(--accent), var(--accent-2));
+}
+
+.loader span.running {
   animation: load 1500ms ease-in-out infinite;
+}
+
+.loader span.complete {
+  animation: none;
+  width: 100%;
+  transform: translateX(0%);
 }
 
 @keyframes load {

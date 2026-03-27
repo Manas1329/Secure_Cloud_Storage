@@ -1,7 +1,11 @@
 {% extends 'base.html' %}
+{% load storage_extras %}
 {% block title %}SecureCloud | Files{% endblock %}
 {% block content %}
 <section class="glass panel">
+    {% if show_encrypt_popup %}
+    <div id="uploadPopupMeta" data-file-id="{{ popup_file_id }}"></div>
+    {% endif %}
     <div class="row-space">
         <h2>File Management</h2>
         <form method="get" class="inline-form">
@@ -17,13 +21,33 @@
         {% for f in files %}
         <tr>
             <td>{{ f.original_name }}</td>
-            <td>{{ f.file_size }}</td>
+            <td>{{ f.file_size|filesizeformat }}</td>
             <td class="mono">{{ f.sha256_hash|slice:":16" }}...</td>
             <td>{{ f.expiry_date|default:"No expiry" }}</td>
             <td>{{ f.download_count }} / {% if f.download_limit == 0 %}unlimited{% else %}{{ f.download_limit }}{% endif %}</td>
             <td class="action-row">
-                <a class="btn small" href="{% url 'storage:view' f.id %}">View</a>
-                <a class="btn small" href="{% url 'storage:download' f.id %}">Download</a>
+                <button
+                    class="btn small secure-action"
+                    type="button"
+                    data-url="{% url 'storage:view' f.id %}"
+                    data-mode="decrypt"
+                    data-file="{{ f.original_name }}"
+                    data-hash="{{ f.sha256_hash }}"
+                    data-fermat="{{ f.fermat_base }}^(p-1) mod {{ f.fermat_modulus }} = {{ f.fermat_result }}"
+                >View</button>
+                {% with share=share_entries|get_item:f.id %}
+                    {% if user.role != 'VIEWER' or share and share.can_download %}
+                        <button
+                            class="btn small secure-action"
+                            type="button"
+                            data-url="{% url 'storage:download' f.id %}"
+                            data-mode="decrypt"
+                            data-file="{{ f.original_name }}"
+                            data-hash="{{ f.sha256_hash }}"
+                            data-fermat="{{ f.fermat_base }}^(p-1) mod {{ f.fermat_modulus }} = {{ f.fermat_result }}"
+                        >Download</button>
+                    {% endif %}
+                {% endwith %}
                 {% if user.role != 'VIEWER' %}
                     <a class="btn small alt" href="{% url 'storage:share' f.id %}">Share</a>
                     <a class="btn small danger" href="{% url 'storage:delete' f.id %}">Delete</a>
@@ -32,10 +56,12 @@
                     class="btn small"
                     type="button"
                     onclick="showPipeline(this)"
+                    data-file-id="{{ f.id }}"
                     data-file="{{ f.original_name }}"
                     data-hash="{{ f.sha256_hash }}"
                     data-fermat="{{ f.fermat_base }}^(p-1) mod {{ f.fermat_modulus }} = {{ f.fermat_result }}"
-                >Pipeline</button>
+                    title="Show cryptography pipeline"
+                >&#128274;</button>
             </td>
         </tr>
         {% empty %}

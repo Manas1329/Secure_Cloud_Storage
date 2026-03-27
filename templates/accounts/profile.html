@@ -13,7 +13,7 @@
             {% endfor %}
             <button class="btn" name="update_profile" value="1" type="submit">Update Profile</button>
         </form>
-        <p class="muted">Storage: {{ user.storage_used }} / {{ user.storage_limit }} bytes</p>
+        <p class="muted">Storage: {{ user.storage_used|filesizeformat }} / {{ user.storage_limit|filesizeformat }}</p>
     </div>
     <div class="glass panel">
         <h3>Change Password</h3>

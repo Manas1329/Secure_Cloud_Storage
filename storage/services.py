@@ -1,7 +1,7 @@
 from django.db.models import Q
 
 from accounts.models import User
-from storage.models import AuditLog, SecureFile
+from storage.models import AuditLog, SecureFile, SecureFileShare
 
 
 def get_client_ip(request):
@@ -26,7 +26,16 @@ def user_can_access_file(user: User, secure_file: SecureFile):
         return True
     if secure_file.owner_id == user.id:
         return True
-    return secure_file.shared_with.filter(id=user.id).exists()
+    return SecureFileShare.objects.filter(secure_file=secure_file, viewer=user).exists()
+
+
+def user_can_download_file(user: User, secure_file: SecureFile):
+    if user.role == User.Role.ADMIN:
+        return True
+    if secure_file.owner_id == user.id:
+        return True
+    share = SecureFileShare.objects.filter(secure_file=secure_file, viewer=user).first()
+    return bool(share and share.can_download)
 
 
 def list_visible_files(user: User):
@@ -34,7 +43,7 @@ def list_visible_files(user: User):
         return SecureFile.objects.all()
     if user.role == User.Role.USER:
         return SecureFile.objects.filter(owner=user)
-    return SecureFile.objects.filter(shared_with=user)
+    return SecureFile.objects.filter(share_entries__viewer=user).distinct()
 
 
 def search_files_for_user(user: User, query: str):
@@ -42,3 +51,9 @@ def search_files_for_user(user: User, query: str):
     if not query:
         return files
     return files.filter(Q(original_name__icontains=query) | Q(description__icontains=query))
+
+
+def get_share_entry(user: User, secure_file: SecureFile):
+    if user.role == User.Role.ADMIN or secure_file.owner_id == user.id:
+        return None
+    return SecureFileShare.objects.filter(secure_file=secure_file, viewer=user).first()

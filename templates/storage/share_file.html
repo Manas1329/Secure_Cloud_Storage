@@ -5,7 +5,11 @@
     <h2>Share {{ file.original_name }}</h2>
     <form method="post" class="stack">
         {% csrf_token %}
-        {{ form.viewers }}
+        <label>Viewer Username</label>
+        {{ form.username }}
+        <label>Permission</label>
+        {{ form.permission }}
+        <label class="inline-check">{{ form.remove_access }} Remove this viewer's access</label>
         <button class="btn" type="submit">Update Sharing</button>
     </form>
 </section>

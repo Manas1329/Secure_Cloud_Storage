@@ -1,7 +1,7 @@
 from django import forms
 
 from accounts.models import User
-from storage.models import SecureFile
+from storage.models import SecureFile, SecureFileShare
 
 
 class UploadFileForm(forms.ModelForm):
@@ -16,16 +16,27 @@ class UploadFileForm(forms.ModelForm):
             "download_limit": forms.NumberInput(attrs={"class": "input", "min": 0, "placeholder": "0 for unlimited"}),
         }
 
-    share_with = forms.ModelMultipleChoiceField(
-        queryset=User.objects.filter(role=User.Role.VIEWER),
+    share_username = forms.CharField(
         required=False,
-        widget=forms.SelectMultiple(attrs={"class": "input"}),
+        widget=forms.TextInput(attrs={"class": "input", "placeholder": "Viewer username (optional)"}),
+    )
+    share_permission = forms.ChoiceField(
+        required=False,
+        choices=SecureFileShare.Permission.choices,
+        widget=forms.Select(attrs={"class": "input"}),
     )
 
 
 class ShareFileForm(forms.Form):
-    viewers = forms.ModelMultipleChoiceField(
-        queryset=User.objects.filter(role=User.Role.VIEWER),
-        widget=forms.SelectMultiple(attrs={"class": "input"}),
+    username = forms.CharField(
+        required=True,
+        widget=forms.TextInput(attrs={"class": "input", "placeholder": "Viewer username"}),
+    )
+    permission = forms.ChoiceField(
+        choices=SecureFileShare.Permission.choices,
+        widget=forms.Select(attrs={"class": "input"}),
+    )
+    remove_access = forms.BooleanField(
         required=False,
+        widget=forms.CheckboxInput(attrs={"class": "check"}),
     )
