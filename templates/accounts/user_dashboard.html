@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}SecureCloud | User Dashboard{% endblock %}
+{% block content %}
+<section class="glass panel">
+    <h2>Welcome, {{ user.username }}</h2>
+    <p>Maintain secure sharing with expiry windows and download controls.</p>
+</section>
+
+<section class="card-grid">
+    <article class="glass card">
+        <h3>Storage Usage</h3>
+        <div class="progress"><span style="width: {{ storage_percent }}%"></span></div>
+        <p>{{ user.storage_used }} / {{ user.storage_limit }} bytes</p>
+    </article>
+    <article class="glass card"><h3>Total Files</h3><p>{{ file_count }}</p></article>
+    <article class="glass card"><h3>Recent Uploads</h3>
+        <ul>
+            {% for f in recent_uploads %}<li>{{ f.original_name }}</li>{% empty %}<li>No uploads yet.</li>{% endfor %}
+        </ul>
+    </article>
+</section>
+
+<section class="glass panel">
+    <h3>Download History Snapshot</h3>
+    <canvas id="downloadChart" height="120"></canvas>
+</section>
+{% endblock %}
+{% block script %}
+<script>
+(async function(){
+  const response = await fetch("{% url 'storage:history-fragment' %}");
+  const html = await response.text();
+  const holder = document.createElement("div");
+  holder.innerHTML = html;
+  const labels = JSON.parse(holder.querySelector("#chart-labels").textContent);
+  const values = JSON.parse(holder.querySelector("#chart-values").textContent);
+  if (window.Chart) {
+    new Chart(document.getElementById("downloadChart"), {
+      type: "bar",
+      data: { labels, datasets: [{ label: "Downloads", data: values, backgroundColor: "#6db8ff" }] },
+      options: { responsive: true, plugins: { legend: { display: false } } }
+    });
+  }
+})();
+</script>
+{% endblock %}

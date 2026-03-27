@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}SecureCloud | Share File{% endblock %}
+{% block content %}
+<section class="form-wrap glass">
+    <h2>Share {{ file.original_name }}</h2>
+    <form method="post" class="stack">
+        {% csrf_token %}
+        {{ form.viewers }}
+        <button class="btn" type="submit">Update Sharing</button>
+    </form>
+</section>
+{% endblock %}

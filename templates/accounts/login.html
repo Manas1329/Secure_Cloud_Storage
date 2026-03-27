@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}SecureCloud | Login{% endblock %}
+{% block content %}
+<section class="form-wrap glass">
+    <h2>Login</h2>
+    <form method="post" class="stack">
+        {% csrf_token %}
+        {{ form.non_field_errors }}
+        {% for field in form %}
+            <label>{{ field.label }}</label>
+            {{ field }}
+            <small class="error">{{ field.errors|striptags }}</small>
+        {% endfor %}
+        <button class="btn" type="submit">Sign In</button>
+    </form>
+</section>
+{% endblock %}

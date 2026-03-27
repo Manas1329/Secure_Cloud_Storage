@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}SecureCloud | Home{% endblock %}
+{% block content %}
+<section class="hero glass">
+    <h1>Secure File Storage with Multi-Layer Encryption</h1>
+    <p>SecureCloud protects file confidentiality using SHA-256 integrity checks, Fermat-driven key derivation, and AES encryption.</p>
+    <div class="cta-row">
+        <a class="btn" href="{% url 'accounts:login' %}">Login</a>
+        <a class="btn alt" href="{% url 'accounts:register' %}">Register</a>
+    </div>
+</section>
+
+<section class="card-grid">
+    <article class="glass card">
+        <h3>Advantages</h3>
+        <ul>
+            <li>Encrypted-at-rest file storage</li>
+            <li>Granular share permissions for viewers</li>
+            <li>Auditable security-critical activity logs</li>
+        </ul>
+    </article>
+    <article class="glass card">
+        <h3>Security Features</h3>
+        <ul>
+            <li>SHA-256 integrity verification</li>
+            <li>AES-GCM encryption and authenticated decryption</li>
+            <li>Fermat-based key validation layer</li>
+        </ul>
+    </article>
+    <article class="glass card caution">
+        <h3>Caution</h3>
+        <ul>
+            <li>Use unique, strong account passwords</li>
+            <li>Set expiry and download limits where possible</li>
+            <li>Review audit logs frequently</li>
+        </ul>
+    </article>
+</section>
+{% endblock %}

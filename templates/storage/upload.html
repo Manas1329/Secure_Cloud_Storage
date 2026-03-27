@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% block title %}SecureCloud | Upload{% endblock %}
+{% block content %}
+<section class="form-wrap glass">
+    <h2>Upload File</h2>
+    <div id="dropZone" class="drop-zone">Drag and drop file here</div>
+    <form method="post" enctype="multipart/form-data" class="stack" id="uploadForm">
+        {% csrf_token %}
+        <label>Source File</label>
+        {{ form.source_file }}
+
+        <label>Description</label>
+        {{ form.description }}
+
+        <label>Expiry Date</label>
+        {{ form.expiry_date }}
+
+        <label>Download Limit</label>
+        {{ form.download_limit }}
+
+        <label>Share with viewers</label>
+        {{ form.share_with }}
+
+        <button class="btn" type="submit">Encrypt and Upload</button>
+    </form>
+</section>
+{% endblock %}

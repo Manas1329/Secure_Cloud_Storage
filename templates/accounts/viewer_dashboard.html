@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+{% block title %}SecureCloud | Viewer Dashboard{% endblock %}
+{% block content %}
+<section class="glass panel">
+    <h2>Viewer Workspace</h2>
+    <p>You can inspect shared files and download only when permitted.</p>
+</section>
+<section class="card-grid">
+    <article class="glass card"><h3>Shared Files</h3><p>{{ shared_count }}</p></article>
+    <article class="glass card"><h3>Recent Shares</h3>
+        <ul>{% for f in recent_shared %}<li>{{ f.original_name }}</li>{% empty %}<li>No shared files.</li>{% endfor %}</ul>
+    </article>
+    <article class="glass card"><h3>Storage Limit</h3><p>0 GB (Viewer role)</p></article>
+</section>
+{% endblock %}

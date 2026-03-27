@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %}SecureCloud | Files{% endblock %}
+{% block content %}
+<section class="glass panel">
+    <div class="row-space">
+        <h2>File Management</h2>
+        <form method="get" class="inline-form">
+            <input class="input" type="text" name="q" value="{{ query }}" placeholder="Search by name or description">
+            <button class="btn small" type="submit">Search</button>
+        </form>
+    </div>
+
+    <table class="table">
+        <tr>
+            <th>File</th><th>Size</th><th>Hash</th><th>Expiry</th><th>Downloads</th><th>Actions</th>
+        </tr>
+        {% for f in files %}
+        <tr>
+            <td>{{ f.original_name }}</td>
+            <td>{{ f.file_size }}</td>
+            <td class="mono">{{ f.sha256_hash|slice:":16" }}...</td>
+            <td>{{ f.expiry_date|default:"No expiry" }}</td>
+            <td>{{ f.download_count }} / {% if f.download_limit == 0 %}unlimited{% else %}{{ f.download_limit }}{% endif %}</td>
+            <td class="action-row">
+                <a class="btn small" href="{% url 'storage:view' f.id %}">View</a>
+                <a class="btn small" href="{% url 'storage:download' f.id %}">Download</a>
+                {% if user.role != 'VIEWER' %}
+                    <a class="btn small alt" href="{% url 'storage:share' f.id %}">Share</a>
+                    <a class="btn small danger" href="{% url 'storage:delete' f.id %}">Delete</a>
+                {% endif %}
+                <button
+                    class="btn small"
+                    type="button"
+                    onclick="showPipeline(this)"
+                    data-file="{{ f.original_name }}"
+                    data-hash="{{ f.sha256_hash }}"
+                    data-fermat="{{ f.fermat_base }}^(p-1) mod {{ f.fermat_modulus }} = {{ f.fermat_result }}"
+                >Pipeline</button>
+            </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="6">No files found.</td></tr>
+        {% endfor %}
+    </table>
+</section>
+{% endblock %}
